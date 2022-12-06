@@ -3,6 +3,7 @@ celery -A tasks.celery worker --loglevel=info
 
 #celery worker for windows
 celery -A tasks.celery worker -l info --pool=solo
+celery -A crawl.celery worker -l info --pool=solo
 celery -A tasks.celery worker -l info --pool=prefork
 celery -A tasks.celery worker -l info --pool=gevent
 

@@ -8,15 +8,15 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException
 from lxml.html import fromstring
 from crawl import save_dice_data_to_db, save_indeed_data_to_db, save_naukri_data_to_db
+import random
 
 celery = Celery('tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
-
 
 """
 Dice Crawler
 """
-@celery.task
-def extract_dice_jobs(tech, location, page=1):
+@celery.task(bind=True)
+def extract_dice_jobs(self, tech, location, page=1):
     FILE_NAME = 'dice.csv'
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
     options = webdriver.ChromeOptions()
@@ -40,6 +40,10 @@ def extract_dice_jobs(tech, location, page=1):
     job_titles_list, company_name_list, location_list, job_types_list = [], [], [], []
 
     job_posted_dates_list, job_descriptions_list = [], []
+    verb = ['Starting up', 'Booting', 'Repairing', 'Loading', 'Checking']
+    adjective = ['master', 'radiant', 'silent', 'harmonic', 'fast']
+    noun = ['solar array', 'particle reshaper', 'cosmic ray', 'orbiter', 'bit']
+    message = ''
     for k in range(1, int(page)):
         URL = f"https://www.dice.com/jobs?q={tech}&location={location}&radius=30&radiusUnit=mi&page={k}&pageSize=20&language=en&eid=S2Q_,bw_1"
         driver.get(URL)
@@ -84,7 +88,7 @@ def extract_dice_jobs(tech, location, page=1):
         # job_descriptions
         for i in job_descriptions:
             job_descriptions_list.append(i.text)
-
+        #progress_recorder.set_progress(k+1, page,f'on iteration {k}')
         print(len(job_titles_list), len(job_descriptions_list),
               len(job_posted_dates_list), len(job_types_list),
               len(company_name_list), len(location_list))
@@ -96,7 +100,12 @@ def extract_dice_jobs(tech, location, page=1):
         df['Job Type'] = job_types_list
         df['Location'] = location_list
         df.to_csv(f'./static/{FILE_NAME}', index=False)
-        save_dice_data_to_db()
+        if not message or random.random() < 0.25:
+            message = '{0} {1} {2}...'.format(random.choice(verb),
+                                              random.choice(adjective),
+                                              random.choice(noun))
+        self.update_state(state='PROGRESS', meta={'current': k, 'total': page, 'status': message})
+    return {'current': 100, 'total': 100, 'status': 'Task completed!'}
 
 """
 Indeed.com crawler
@@ -120,9 +129,10 @@ description_list, company_name_list, designation_list, salary_list, company_url 
 location_list, qualification_list = [], []
 driver = webdriver.Chrome(executable_path="C:\Program Files\Google\chromedriver\chromedriver.exe", options=options)
 job_detail_links = []
+job_posted_dates_list, job_descriptions_list = [], []
 
 
-@celery.task
+@celery.task(bind=True)
 def get_job_detail_links(tech, location, page):
     for page in range(0, page):
         time.sleep(5)
@@ -141,8 +151,8 @@ def get_job_detail_links(tech, location, page):
                     f"{BASE_URL}{inner_links.a.get('href')}")
 
 
-@celery.task
-def scrap_details(tech, location, page):
+@celery.task(bind=True)
+def scrap_details(self, tech, location, page):
     print("___________", "Indeed")
     get_job_detail_links(tech, location, page)
     time.sleep(2)
@@ -209,7 +219,16 @@ def scrap_details(tech, location, page):
                 qualification_list.append(i.text)
         else:
             qualification_list.append('NA')
-
+        verb = ['Starting up', 'Booting', 'Repairing', 'Loading', 'Checking']
+        adjective = ['master', 'radiant', 'silent', 'harmonic', 'fast']
+        noun = ['solar array', 'particle reshaper', 'cosmic ray', 'orbiter', 'bit']
+        message = ''
+        if not message or random.random() < 0.25:
+            message = '{0} {1} {2}...'.format(random.choice(verb),
+                                            random.choice(adjective),
+                                            random.choice(noun))
+        self.update_state(state='PROGRESS', meta={'current': link, 'total': page, 'status': message})
+        return {'current': 100, 'total': 100, 'status': 'Task completed!'}
     FILE_NAME = 'indeed.csv'
     df = pd.DataFrame()
     df['Company Name'] = company_name_list
@@ -273,8 +292,12 @@ def get_job_detail_links_naukari(tech, page):
                     attrs={'class': "title fw500 ellipsis"}):
                 job_detail_links_naukari.append(inner_links.get('href'))
 
-@celery.task
-def scrap_naukari(tech, page):
+@celery.task(bind=True)
+def scrap_naukari(self, tech, page):
+    verb = ['Starting up', 'Booting', 'Repairing', 'Loading', 'Checking']
+    adjective = ['master', 'radiant', 'silent', 'harmonic', 'fast']
+    noun = ['solar array', 'particle reshaper', 'cosmic ray', 'orbiter', 'bit']
+    message = ''
     get_job_detail_links_naukari(tech, page)
     time.sleep(2)
     designation_list_naukari, company_name_list_naukari, experience_list, salary_list__naukari = [], [], [], []
@@ -368,7 +391,12 @@ def scrap_naukari(tech, page):
                         attrs={'class': "detail dang-inner-html"}).text)
             except:
                 pass
-
+            if not message or random.random() < 0.25:
+                message = '{0} {1} {2}...'.format(random.choice(verb),
+                                                  random.choice(adjective),
+                                                  random.choice(noun))
+            self.update_state(state='PROGRESS', meta={'current': link, 'total': page, 'status': message})
+            return {'current': 100, 'total': 100, 'status': 'Task completed!'}
     df = pd.DataFrame()
     df['Designation'] = designation_list_naukari
     df['Company Name'] = company_name_list_naukari
