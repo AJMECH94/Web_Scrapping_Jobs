@@ -19,6 +19,8 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException
 import time
 import pandas as pd
+import functools
+import argparse
 
 app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = False
@@ -26,6 +28,7 @@ app.config["SESSION_TYPE"] = "filesystem"
 app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
 app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
 celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
+#celery = Celery(app.name, broker='redis://localhost:6379/0')
 celery.conf.update(app.config)
 sess = Session()
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:12345@localhost/scrap'
@@ -34,32 +37,55 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 """
+Driver
+"""
+"""
+DEBUG_DESCRIPTION='Puts script in a \'debug\' mode where the Chrome GUI is visible'
+DEBUG_DISABLED = False
+DEBUG_ENABLED = True
+MAILTM_DESCRIPTION='Uses mail.tm instead of guerrilla mail by default'
+MAILTM_DISABLED = False
+MAILTM_ENABLED = True
+EPILOG = 'Kellogg bad | Union good | Support strike funds '
+SCRIPT_DESCRIPTION=''
+printf = functools.partial(print, flush=True)
+parser = argparse.ArgumentParser(SCRIPT_DESCRIPTION, epilog=EPILOG)
+parser.add_argument('--debug',action='store_true', default=DEBUG_DISABLED,required=False,help=DEBUG_DESCRIPTION,dest='debug')
+parser.add_argument('--mailtm',action='store_true', default=MAILTM_DISABLED,required=False,help=MAILTM_DESCRIPTION,dest='mailtm')
+args = parser.parse_args()
+options = webdriver.ChromeOptions()
+if (args.debug == DEBUG_DISABLED):
+    options.add_argument('disable-blink-features=AutomationControlled')
+    options.headless = True
+    driver = webdriver.Chrome(executable_path="C:\Program Files\Google\chromedriver\chromedriver.exe", options=options)
+    driver.set_window_size(1440, 900)
+elif (args.debug == DEBUG_ENABLED):
+    driver = webdriver.Chrome(executable_path="C:\Program Files\Google\chromedriver\chromedriver.exe")
+"""
+
+
+options = webdriver.ChromeOptions()
+options.headless = True
+options.add_argument("--window-size=1920,1080")
+options.add_argument('--ignore-certificate-errors')
+options.add_argument('--allow-running-insecure-content')
+options.add_argument("--disable-extensions")
+options.add_argument("--start-maximized")
+options.add_argument('--disable-gpu')
+options.add_argument('--disable-dev-shm-usage')
+options.add_argument('--no-sandbox')
+driver = webdriver.Chrome(executable_path="C:\Program Files\Google\chromedriver\chromedriver.exe", options=options)
+
+
+"""
 Dice Crawler
 """
 @celery.task(bind=True)
 def extract_dice_jobs(self, tech, location, page=1):
     FILE_NAME = 'dice.csv'
-    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
-    options = webdriver.ChromeOptions()
-    options.headless = True
-    options.add_argument(f'user-agent={user_agent}')
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument('--ignore-certificate-errors')
-    options.add_argument('--allow-running-insecure-content')
-    options.add_argument("--disable-extensions")
-    options.add_argument("--proxy-server='direct://'")
-    options.add_argument("--proxy-bypass-list=*")
-    options.add_argument("--start-maximized")
-    options.add_argument('--disable-gpu')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--no-sandbox')
-    driver = webdriver.Chrome(executable_path="C:\Program Files\Google\chromedriver\chromedriver.exe", options=options)
-
     driver.maximize_window()
     time.sleep(3)
-
     job_titles_list, company_name_list, location_list, job_types_list = [], [], [], []
-
     job_posted_dates_list, job_descriptions_list = [], []
     verb = ['Starting up', 'Booting', 'Repairing', 'Loading', 'Checking']
     adjective = ['master', 'radiant', 'silent', 'harmonic', 'fast']
@@ -130,29 +156,15 @@ def extract_dice_jobs(self, tech, location, page=1):
 """
 Indeed.com crawler
 """
-BASE_URL = 'https://in.indeed.com'
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
-options = webdriver.ChromeOptions()
-options.headless = True
-options.add_argument(f'user-agent={user_agent}')
-options.add_argument("--window-size=1920,1080")
-options.add_argument('--ignore-certificate-errors')
-options.add_argument('--allow-running-insecure-content')
-options.add_argument("--disable-extensions")
-options.add_argument("--proxy-server='direct://'")
-options.add_argument("--proxy-bypass-list=*")
-options.add_argument("--start-maximized")
-options.add_argument('--disable-gpu')
-options.add_argument('--disable-dev-shm-usage')
-options.add_argument('--no-sandbox')
-description_list, company_name_list, designation_list, salary_list, company_url = [], [], [], [], []
-location_list, qualification_list = [], []
-driver = webdriver.Chrome(executable_path="C:\Program Files\Google\chromedriver\chromedriver.exe", options=options)
+
 job_detail_links = []
 job_posted_dates_list, job_descriptions_list = [], []
-
+description_list, company_name_list, designation_list, salary_list, company_url = [], [], [], [], []
+location_list, qualification_list = [], []
+BASE_URL = 'https://in.indeed.com'
 
 def get_job_detail_links(tech, location, page):
+
     for page in range(0, page):
         time.sleep(5)
         URL = f"https://in.indeed.com/jobs?q={tech}&l={location}&start={page * 10}"
@@ -266,40 +278,18 @@ def scrap_details(self, tech, location, page):
 Naukari.com Crawler
 """
 BASE_URL_naukari = 'https://www.naukri.com/'
-FILE_NAME = 'naukri.csv'
-CTC_FILTER_QUERY_PARAMS = '&ctcFilter=101&ctcFilter=15to25&ctcFilter=25to50&ctcFilter=50to75&ctcFilter=75to100'
-CITY_FILTER_PARAMS = '&cityTypeGid=6&cityTypeGid=17&cityTypeGid=51&cityTypeGid=73&cityTypeGid=97&cityTypeGid=134&cityTypeGid=139&cityTypeGid=183&cityTypeGid=220&cityTypeGid=232&cityTypeGid=9508&cityTypeGid=9509'
-INDUSTRY_FILTER_PARAMS = '&industryTypeIdGid=103&industryTypeIdGid=107&industryTypeIdGid=108&industryTypeIdGid=110&industryTypeIdGid=111&industryTypeIdGid=112&industryTypeIdGid=113&industryTypeIdGid=119&industryTypeIdGid=127&industryTypeIdGid=131&industryTypeIdGid=132&industryTypeIdGid=133&industryTypeIdGid=137&industryTypeIdGid=149&industryTypeIdGid=155&industryTypeIdGid=156&industryTypeIdGid=164&industryTypeIdGid=167&industryTypeIdGid=172&industryTypeIdGid=175'
-
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
-options = webdriver.ChromeOptions()
-options.headless = True
-options.add_argument(f'user-agent={user_agent}')
-options.add_argument("--window-size=1920,1080")
-options.add_argument('--ignore-certificate-errors')
-options.add_argument('--allow-running-insecure-content')
-options.add_argument("--disable-extensions")
-options.add_argument("--proxy-server='direct://'")
-options.add_argument("--proxy-bypass-list=*")
-options.add_argument("--start-maximized")
-options.add_argument('--disable-gpu')
-options.add_argument('--disable-dev-shm-usage')
-options.add_argument('--no-sandbox')
+job_detail_links_naukari = []
 description_list_naukari, company_name_list_naukari, designation_list_naukari, salary_list_naukari, company_url_naukari = [], [], [], [], []
 location_list_naukari, qualification_list_naukari = [], []
-driver_naukari = webdriver.Chrome(executable_path="C:\Program Files\Google\chromedriver\chromedriver.exe",
-                          options=options)
-language = "python"
-job_detail_links_naukari = []
-
-
+FILE_NAME = 'naukri.csv'
 def get_job_detail_links_naukari(tech, location, page):
-    for page in range(1, page):
+
+    for page_no in range(0, page):
         print("-----------------in job link")
-        URL = f"https://www.naukri.com/python-jobs-in-{location}-{page}?k={tech}&l={location}"
-        driver_naukari.get(URL)
+        URL = f"https://www.naukri.com/python-jobs-in-{location}-{page_no}?k={tech}&l={location}"
+        driver.get(URL)
         time.sleep(5)
-        soup = BeautifulSoup(driver_naukari.page_source, 'lxml')
+        soup = BeautifulSoup(driver.page_source, 'lxml')
 
         for outer_artical in soup.findAll(attrs={'class': "jobTuple bgWhite br4 mb-8"}):
             for inner_links in outer_artical.find(attrs={'class': "jobTupleHeader"}).findAll(
@@ -324,9 +314,8 @@ def scrap_naukari(self, tech, location, page):
 
     for link in range(len(job_detail_links_naukari)):
         time.sleep(5)
-        driver_naukari.get(job_detail_links_naukari[link])
-        soup = BeautifulSoup(driver_naukari.page_source, 'lxml')
-
+        driver.get(job_detail_links_naukari[link])
+        soup = BeautifulSoup(driver.page_source, 'lxml')
         if soup.find(attrs={'class': "salary"}) == None or soup.find(attrs={'class': 'loc'}) == "Remote":
             continue
         else:
@@ -411,8 +400,9 @@ def scrap_naukari(self, tech, location, page):
                 message = '{0} {1} {2}...'.format(random.choice(verb),
                                                   random.choice(adjective),
                                                   random.choice(noun))
-            self.update_state(state='PROGRESS', meta={'current': link, 'total': len(job_detail_links_naukari), 'status': message})
-            return {'current': 100, 'total': 100, 'status': 'Task completed!'}
+            self.update_state(state='PROGRESS',
+                              meta={'current': link, 'total': len(job_detail_links_naukari), 'status': message})
+
     df = pd.DataFrame()
     df['Designation'] = designation_list_naukari
     df['Company Name'] = company_name_list_naukari
@@ -435,7 +425,7 @@ def scrap_naukari(self, tech, location, page):
     df['About Company'] = about_company_list
     df.to_csv(f'./static/{FILE_NAME}', index=False)
     save_naukri_data_to_db()
-    driver_naukari.close()
+    driver.close()
 
 
 class User(db.Model):
@@ -654,7 +644,7 @@ def show_result(task_id):
                 df = pd.read_csv("./static/dice.csv")
             except:
                 "NO DATA"
-        elif web == "dice":
+        elif web == "naukri":
             try:
                 df = pd.read_csv("./static/naukri.csv")
             except:
