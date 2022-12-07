@@ -45,16 +45,18 @@ margin-top: 40px;
 </head>
 <body>
 
-<div class="container">
-  <main class="container">
-      <div class="d-flex  flex-row-reverse" >
-            <a href="/logout" ><button class="btn btn-danger">Logout</button></a>
-      </div>
+<div class="row" >
+    <div class="col col-sm-1 " style="margin-left:85%; margin-top:1%">
+    <a href="/logout" ><button class="btn btn-danger">Logout</button></a>
+</div>
+
+    <div style="margin-left:5%">
     <h2>Job Scrapper</h2>
-
     <h4> What job do you Want to search?</h4>
+        </div>
 
-      <select name="web" id="web">
+    <div class="col col-sm-6" style="margin-left:5%">
+    <select name="web" id="web">
         <option value = "none" selected hidden>Select Website</option>
             <option  value="indeed" >Indeed</option>
             <option  value="dice">Dice</option>
@@ -66,12 +68,18 @@ margin-top: 40px;
             <input type="text" name="location" id="location" placeholder="Enter location to search">
       <br><br>
             <input type="number" name="pages" id="page" placeholder="Enter number of pages to search">
-<br><br>
-      <div class="d-flex gap-2 col-2 mx-auto h-20%  justify-content-center" >
-            <button class="btn btn-success" id="start-bg-job" >search</button>
-        </div>
+        <br><br>
+            <button class="btn btn-success" id="start-bg-job" style="padding-left:5%" >search</button>
+    </div>
 
-        <br>
+    <div class="col col-sm-5" style="padding-left:9%">
+<img src="./static/neosoft.jpg" alt="Neosoft">
+    </div>
+
+
+
+</div>
+<br><br>
     <div id="progress"></div>
 
     <!--<button onclick="start_long_task();">Start Long Calculation</button><br><br>-->
