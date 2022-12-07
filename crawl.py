@@ -22,19 +22,19 @@ import pandas as pd
 import functools
 import argparse
 
-app = Flask(__name__)
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
-app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
-celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
+application = Flask(__name__)
+application.config["SESSION_PERMANENT"] = False
+application.config["SESSION_TYPE"] = "filesystem"
+application.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
+application.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+celery = Celery(application.name, broker=application.config['CELERY_BROKER_URL'])
 #celery = Celery(app.name, broker='redis://localhost:6379/0')
-celery.conf.update(app.config)
+celery.conf.update(application.config)
 sess = Session()
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:12345@localhost/scrap'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+application.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:12345@localhost/scrap'
+application.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(application)
+migrate = Migrate(application, db)
 
 """
 Driver
@@ -525,17 +525,17 @@ def save_indeed_data_to_db():
     c.commit()
     c_obj.close()
 
-with app.app_context():
+with application.app_context():
     db.create_all()
 
 
-@app.route("/", endpoint="1")
+@application.route("/", endpoint="1")
 @login_required
 def home():
     return render_template("home.html")
 
 
-@app.route("/signup", methods=('GET', 'POST'))
+@application.route("/signup", methods=('GET', 'POST'))
 def signup():
     message = None
     if request.method == 'POST':
@@ -562,7 +562,7 @@ def signup():
     return render_template("signup.html", name="signup", message=message)
 
 
-@app.route("/login", methods=('GET', 'POST'))
+@application.route("/login", methods=('GET', 'POST'))
 def login():
     error = None
     if request.method == 'POST':
@@ -586,13 +586,13 @@ def login():
 
 
 @login_required
-@app.route("/logout", endpoint='2')
+@application.route("/logout", endpoint='2')
 def logout():
     session.clear()
     return redirect('/login')
 
 
-@app.route("/search", endpoint="3", methods=['GET', 'POST'])
+@application.route("/search", endpoint="3", methods=['GET', 'POST'])
 @login_required
 def search():
     web = request.args.get("web")
@@ -626,7 +626,7 @@ def search():
     #return render_template("task.html", task_id=task_id)
 
 
-@app.route("/result/<task_id>", endpoint="4")
+@application.route("/result/<task_id>", endpoint="4")
 @login_required
 def show_result(task_id):
     web = session.get("web")
@@ -654,7 +654,7 @@ def show_result(task_id):
     return render_template("search.html", tables=[df.to_html(classes='data', justify='center')], titles=df.columns.values, name=name)
 
 
-@app.route('/status/<task_id>')
+@application.route('/status/<task_id>')
 def taskstatus(task_id):
     print("-------------status")
     web = session.get("web")
@@ -695,7 +695,7 @@ def taskstatus(task_id):
     return jsonify(response)
 
 
-@app.route("/export")
+@application.route("/export")
 def export():
     web = session.get("web")
     csv_dir = "./static"
@@ -716,7 +716,7 @@ def export():
 
 
 if __name__ == "__main__":
-    app.secret_key = 'super secret key'
-    app.config['SESSION_TYPE'] = 'filesystem'
-    sess.init_app(app)
-    app.run(debug=True)
+    application.secret_key = 'super secret key'
+    application.config['SESSION_TYPE'] = 'filesystem'
+    sess.init_app(application)
+    application.run(debug=True)

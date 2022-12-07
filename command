@@ -5,7 +5,9 @@ celery -A tasks.celery worker --loglevel=info
 celery -A tasks.celery worker -l info --pool=solo
 celery -A crawl.celery worker -l info --pool=solo
 celery -A tasks.celery worker -l info --pool=prefork
+celery -A crawl.celery worker -l info --pool=prefork
 celery -A tasks.celery worker -l info --pool=gevent
+celery -A crawl.celery worker -l info --pool=gevent----> working
 
 #celery beat
 celery -A tasks beat --loglevel=info
